@@ -33,18 +33,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flipflag-dev/persist.git"
+    "url": "git+https://github.com/flipflag-dev/persistence-plugin.git"
   },
   "author": "Polevov Evgenii <epolevov@emd.one>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/flipflag-dev/persist/issues"
+    "url": "https://github.com/flipflag-dev/persistence-plugin/issues"
   },
   "release": {
     "branches": [
       "main"
     ],
-    "repositoryUrl": "https://github.com/flipflag-dev/persist.git",
+    "repositoryUrl": "https://github.com/flipflag-dev/persistence-plugin.git",
     "plugins": [
       "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
@@ -61,7 +61,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/flipflag-dev/persist.git#readme",
+  "homepage": "https://github.com/flipflag-dev/persistence-plugin.git#readme",
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@rollup/plugin-alias": "^6.0.0",
