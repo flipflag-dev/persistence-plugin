@@ -1,0 +1,87 @@
+{
+  "name": "@flipflag/persist",
+  "version": "0.1.0",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "description": "Persistence plugin for FlipFlag SDK - offline resilience with pluggable storage adapters",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "FlipFlag",
+    "Feature Flags",
+    "Persistence",
+    "Offline",
+    "localStorage",
+    "sessionStorage",
+    "Cookie",
+    "Cache"
+  ],
+  "scripts": {
+    "build": "rimraf dist && rollup -c rollup.config.js",
+    "typecheck": "tsc --noEmit",
+    "prettier:formatting": "npx prettier --write ./src",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flipflag-dev/persist.git"
+  },
+  "author": "Polevov Evgenii <epolevov@emd.one>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/flipflag-dev/persist/issues"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "repositoryUrl": "https://github.com/flipflag-dev/persist.git",
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/npm",
+      [
+        "@semantic-release/git",
+        {
+          "message": "chore(release): ${nextRelease.version} \n\n${nextRelease.notes}"
+        }
+      ],
+      "@semantic-release/github"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/flipflag-dev/persist.git#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@rollup/plugin-alias": "^6.0.0",
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^25.0.1",
+    "eslint": "^9.39.0",
+    "globals": "^17.0.0",
+    "jest": "^30.2.0",
+    "rimraf": "^6.1.2",
+    "rollup": "^4.53.3",
+    "rollup-plugin-dts": "^6.2.3",
+    "rollup-plugin-esbuild": "^6.2.1",
+    "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.53.0"
+  },
+  "peerDependencies": {
+    "@flipflag/sdk": ">=1.2.0"
+  }
+}
