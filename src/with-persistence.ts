@@ -27,6 +27,20 @@ export function withPersistence<T extends FlipFlag>(
 
   return new Proxy(flipFlag, {
     get(target, prop, receiver) {
+      if (prop === "init") {
+        return async (): Promise<void> => {
+          await target.init();
+
+          // Access featuresFlags directly after init and persist all flags
+          const featuresFlags = (target as unknown as { featuresFlags: Record<string, { enabled: boolean }> }).featuresFlags;
+
+          for (const [flagName, flag] of Object.entries(featuresFlags)) {
+            const storageKey = `${prefix}${flagName}`;
+            persistFlag(adapter, storageKey, flag.enabled, ttlMs, onPersist, flagName, onError);
+          }
+        };
+      }
+
       if (prop === "isEnabled") {
         return (flagName: string): boolean => {
           const storageKey = `${prefix}${flagName}`;
