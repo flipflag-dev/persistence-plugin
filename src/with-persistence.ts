@@ -25,6 +25,9 @@ export function withPersistence<T extends FlipFlag>(
     onError,
   } = options;
 
+  // Cache for pre-warmed flag values (used for async adapter restore)
+  const flagCache = new Map<string, PersistedFlagEntry>();
+
   return new Proxy(flipFlag, {
     get(target, prop, receiver) {
       if (prop === "init") {
@@ -32,12 +35,43 @@ export function withPersistence<T extends FlipFlag>(
           await target.init();
 
           // Access featuresFlags directly after init and persist all flags
-          const featuresFlags = (target as unknown as { featuresFlags: Record<string, { enabled: boolean }> }).featuresFlags;
+          const featuresFlags = (target as unknown as { featuresFlags?: Record<string, { enabled: boolean }> }).featuresFlags;
+
+          // Validate featuresFlags exists and is an object
+          if (!featuresFlags || typeof featuresFlags !== 'object') {
+            return;
+          }
+
+          const flagNames = Object.keys(featuresFlags);
+
+          // Pre-load existing cache for async restore support
+          const loadPromises = flagNames.map(async (flagName) => {
+            const storageKey = `${prefix}${flagName}`;
+            try {
+              const result = adapter.get(storageKey);
+              const entry = result instanceof Promise ? await result : result;
+              if (entry && (!entry.expiresAt || Date.now() < entry.expiresAt)) {
+                flagCache.set(storageKey, entry);
+              }
+            } catch (e) {
+              onError?.(e instanceof Error ? e : new Error(String(e)));
+            }
+          });
+          await Promise.all(loadPromises);
+
+          // Collect all persist promises and await them
+          const persistPromises: Promise<void>[] = [];
 
           for (const [flagName, flag] of Object.entries(featuresFlags)) {
-            const storageKey = `${prefix}${flagName}`;
-            persistFlag(adapter, storageKey, flag.enabled, ttlMs, onPersist, flagName, onError);
+            if (flag && typeof flag.enabled === 'boolean') {
+              const storageKey = `${prefix}${flagName}`;
+              persistPromises.push(
+                persistFlagAsync(adapter, storageKey, flag.enabled, ttlMs, onPersist, flagName, onError, flagCache)
+              );
+            }
           }
+
+          await Promise.all(persistPromises);
         };
       }
 
@@ -55,7 +89,7 @@ export function withPersistence<T extends FlipFlag>(
             return value;
           } catch {
             // SDK failed, try to restore from cache
-            return restoreFlag(adapter, storageKey, onRestore, flagName, onError);
+            return restoreFlag(adapter, storageKey, onRestore, flagName, onError, flagCache);
           }
         };
       }
@@ -105,6 +139,41 @@ function persistFlag(
 }
 
 /**
+ * Persist a flag value to storage (async version that awaits completion)
+ */
+async function persistFlagAsync(
+  adapter: StorageAdapter,
+  storageKey: string,
+  value: boolean,
+  ttlMs: number,
+  onPersist: PersistenceOptions["onPersist"],
+  flagName: string,
+  onError: PersistenceOptions["onError"],
+  flagCache: Map<string, PersistedFlagEntry>
+): Promise<void> {
+  try {
+    const entry: PersistedFlagEntry = {
+      value,
+      persistedAt: Date.now(),
+      expiresAt: Date.now() + ttlMs,
+    };
+
+    const result = adapter.set(storageKey, entry);
+
+    if (result instanceof Promise) {
+      await result;
+    }
+
+    // Update in-memory cache for async restore support
+    flagCache.set(storageKey, entry);
+
+    onPersist?.(flagName, value);
+  } catch (e) {
+    onError?.(e instanceof Error ? e : new Error(String(e)));
+  }
+}
+
+/**
  * Restore a flag value from cache
  */
 function restoreFlag(
@@ -112,8 +181,17 @@ function restoreFlag(
   storageKey: string,
   onRestore: PersistenceOptions["onRestore"],
   flagName: string,
-  onError: PersistenceOptions["onError"]
+  onError: PersistenceOptions["onError"],
+  flagCache: Map<string, PersistedFlagEntry>
 ): boolean {
+  // Check pre-warmed in-memory cache first (works for async adapters)
+  const cached = flagCache.get(storageKey);
+  if (cached && (!cached.expiresAt || Date.now() < cached.expiresAt)) {
+    onRestore?.(flagName, cached.value);
+    return cached.value;
+  }
+
+  // Fall back to sync adapter access (for sync adapters only)
   try {
     const result = adapter.get(storageKey);
 
@@ -126,8 +204,7 @@ function restoreFlag(
       return false;
     }
 
-    // For async adapters, we can't await in a sync function
-    // Return false immediately, async restore not supported in isEnabled
+    // For async adapters without pre-warmed cache, return false
     return false;
   } catch (e) {
     onError?.(e instanceof Error ? e : new Error(String(e)));
